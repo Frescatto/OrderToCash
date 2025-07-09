@@ -176,6 +176,8 @@ df_pedidos_unicos = df_trabalho.groupby(['FILIAL', 'PEDIDO']).agg(agregacoes).re
 # OU, melhor, se a média móvel for NaN, o pedido pode ser considerado "Sem Média Móvel".
 df_pedidos_unicos['MEDIA_MOVEL_DURACAO_HORAS_FILLNA'] = df_pedidos_unicos['MEDIA_MOVEL_DURACAO_HORAS'].fillna(df_pedidos_unicos['MEDIA_MOVEL_DURACAO_HORAS'].mean())
 
+media_da_media_movel = df_pedidos_unicos['MEDIA_MOVEL_DURACAO_HORAS_FILLNA'].mean()
+
 def classificar_status_media(row):
     if pd.isna(row['DURACAO_PEDIDO_REMESSA_HORAS']) or pd.isna(row['MEDIA_MOVEL_DURACAO_HORAS_FILLNA']):
         return 'Dados Insuficientes' # Ou 'Sem Média Móvel' se preferir ser mais específico para NaNs da média
@@ -311,9 +313,44 @@ fig_classificacao_tempo.update_layout(
     bargap=0.15 # Espaço entre as barras
 )
 
+# --- Adicionando a linha da media_da_media_movel ---
+# Note que estamos adicionando a linha no eixo Y, mas o valor da 'media_da_media_movel'
+# não é uma 'quantidade de pedidos'. É uma média de *duração*.
+# Se o seu objetivo é mostrar essa média no contexto das quantidades,
+# precisamos entender como você visualiza essa relação.
+
+# Uma abordagem seria adicionar o valor como anotação ou em um texto separado,
+# pois ele representa uma métrica diferente das barras (que são contagens).
+
+# Se você realmente quer uma linha, ela faria sentido se o eixo Y representasse 'duração',
+# não 'quantidade de pedidos'.
+
+# Vamos adicionar como uma anotação, que é mais apropriado para uma métrica global que não se alinha
+# diretamente com os eixos do gráfico de contagem.
+fig_classificacao_tempo.add_annotation(
+    text=f"Média Móvel de Duração: {media_da_media_movel:.2f} horas",
+    xref="paper", yref="paper", # Coordenadas em relação ao papel do gráfico (0 a 1)
+    x=0.5, y=1.00, # Posição: 0.5 é o centro horizontal, 1.05 é ligeiramente acima do topo
+    showarrow=False, # Não mostrar seta
+    font=dict(size=12, color="green"),
+    bgcolor="lightyellow",
+    bordercolor="green",
+    borderwidth=1,
+    borderpad=4,
+    xanchor="center", yanchor="bottom"
+)
+
+# Se o intuito fosse uma linha, e o eixo Y representasse o tempo, faríamos assim:
+# fig_classificacao_tempo.add_hline(
+#     y=media_da_media_movel, # O valor no eixo Y onde a linha será desenhada
+#     line_dash="dash",
+#     line_color="blue",
+#     annotation_text=f"Média das Médias Móveis: {media_da_media_movel:.2f}",
+#     annotation_position="top right"
+# )
+
+
 st.plotly_chart(fig_classificacao_tempo, use_container_width=True)
-
-
 
 # --- Criação do Gráfico com Margens ---
 fig_normalizada = px.bar(
