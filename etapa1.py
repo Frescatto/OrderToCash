@@ -20,8 +20,8 @@ now = datetime.now()
 colunas_selecionadas = ['PEDIDO','FILIAL','DATA EMISSAO PEDIDO', 'DATA ASS REMESSA','SITUACAO DO PEDIDO','PEDIDO BLOQUEADO','USUARIO BLOQ PEDIDO','DATA DO BLOQUEIO','OBSERVACAO DO PEDIDO']
 if 'STATUS' in df.columns: # Verifica se a coluna STATUS já existe
     colunas_selecionadas.append('STATUS')
-else:
-    print("Atenção: Coluna 'STATUS' não encontrada no DataFrame original. Será criada com valores padrão.")
+#else:
+    #print("Atenção: Coluna 'STATUS' não encontrada no DataFrame original. Será criada com valores padrão.")
 
 df_trabalho = df[colunas_selecionadas].copy()
 
@@ -280,55 +280,90 @@ import streamlit as st
 
 # --- Configuração da Página Streamlit ---
 st.set_page_config(layout="wide", page_title="Dashboard de Análise de Pedidos")
-st.title("Análise de Pedidos Únicos e Tempos de Processamento")
+st.title("Análise de Pedidos e Tempos de Processamento")
+st.subheader("Medição de tempo da geração do pedido até associação da remessa")
 
+     # --- Seleção de Filial ---
+todas_filiais = ['Todas as Filiais'] + sorted(df_pedidos_unicos['FILIAL'].unique().tolist())
+filial_selecionada = st.selectbox(
+    "Selecione uma Filial:",
+    options=todas_filiais,
+    index=0 # 'Todas as Filiais' como padrão
+)
 
-# --- Criação do Gráfico de Barras ---
+# --- Filtragem dos Dados ---
+df_filtrado = df_pedidos_unicos.copy() # Crie uma cópia para não alterar o original
+if filial_selecionada != 'Todas as Filiais':
+    df_filtrado = df_pedidos_unicos[df_pedidos_unicos['FILIAL'] == filial_selecionada].copy()
+
+# Verificação se o DataFrame filtrado não está vazio antes de prosseguir
+if df_filtrado.empty:
+    st.warning(f"Não há dados para a Filial selecionada: **{filial_selecionada}**")
+    st.stop() # Parar a execução do script se não houver dados
+
+# --- Recalcule os dados para os gráficos com base no df_filtrado ---
+# Conta as ocorrências de cada valor em 'CLASSIFICACAO_TEMPO' do df_filtrado
+contagem_classificacao_tempo = df_filtrado['CLASSIFICACAO_TEMPO'].value_counts().reset_index()
+contagem_classificacao_tempo.columns = ['Classificação', 'Quantidade de Pedidos'] # Aqui a renomeação é para o gráfico
+
+# Para o segundo gráfico, recrie a contagem agrupada e normalize se necessário
+# Para o segundo gráfico, use 'CLASSIFICACAO_TEMPO'
+contagem_por_status_classificacao_e_filial = df_filtrado.groupby(['FILIAL', 'STATUS', 'CLASSIFICACAO_TEMPO']).size().unstack(fill_value=0)
+
+# Garante que todas as colunas de classificação existam, preenchendo com 0 se ausentes
+for col in ['Dentro da Média', 'Fora da Média', 'Dados Insuficientes']:
+    if col not in contagem_por_status_classificacao_e_filial.columns:
+        contagem_por_status_classificacao_e_filial[col] = 0
+
+contagem_por_status_classificacao_e_filial_reset = contagem_por_status_classificacao_e_filial.reset_index()
+
+# Recalcular ordem_filiais com base nas filiais presentes no df_filtrado
+soma_total_por_filial = contagem_por_status_classificacao_e_filial_reset.groupby('FILIAL')[['Dentro da Média', 'Fora da Média', 'Dados Insuficientes']].sum().sum(axis=1).sort_values(ascending=False)
+ordem_filiais = soma_total_por_filial.index.tolist()
+
+contagem_por_status_classificacao_e_filial_reset['FILIAL'] = pd.Categorical(
+    contagem_por_status_classificacao_e_filial_reset['FILIAL'],
+    categories=ordem_filiais,
+    ordered=True
+)
+contagem_por_status_classificacao_e_filial_reset = contagem_por_status_classificacao_e_filial_reset.sort_values('FILIAL')
+
+quantidade_situacao = df_filtrado['SITUACAO DO PEDIDO_DESCRICAO'].value_counts().reset_index()
+quantidade_situacao.columns = ['Situação do Pedido', 'Quantidade']
+
+# Recalcule a media_da_media_movel com base no df_filtrado
+media_da_media_movel = df_filtrado['MEDIA_MOVEL_DURACAO_HORAS_FILLNA'].mean()
+
 fig_classificacao_tempo = px.bar(
     contagem_classificacao_tempo,
-    x='Classificação', # No eixo X, teremos as classificações
-    y='Quantidade de Pedidos', # No eixo Y, a quantidade
-    title='Quantidade de Pedidos por Classificação de Tempo',
+    x='Classificação',
+    y='Quantidade de Pedidos',
+    title=f'Quantidade de Pedidos por Classificação de Tempo ({filial_selecionada})',
     labels={
         'Classificação': 'Classificação de Tempo de Processamento',
         'Quantidade de Pedidos': 'Número de Pedidos'
     },
-    color='Classificação', # Colorir as barras por tipo de classificação
-    color_discrete_map={ # Mapeamento de cores para deixar intuitivo
+    color='Classificação',
+    color_discrete_map={
         'Dentro da Média': 'green',
         'Fora da Média': 'red',
         'Dados Insuficientes': 'gray'
     },
-    text='Quantidade de Pedidos' # Mostrar o valor exato em cima de cada barra
+    text='Quantidade de Pedidos'
 )
 
-# Ajustes de layout para melhor visualização
-fig_classificacao_tempo.update_traces(texttemplate='%{text}', textposition='outside') # Posição do texto
+fig_classificacao_tempo.update_traces(texttemplate='%{text}', textposition='outside')
 fig_classificacao_tempo.update_layout(
     uniformtext_minsize=8,
     uniformtext_mode='hide',
-    xaxis_title_standoff=25, # Aumenta a distância do título do eixo X
-    yaxis_title_standoff=25, # Aumenta a distância do título do eixo Y
-    margin=dict(l=50, r=50, t=80, b=50), # Margens ao redor do gráfico
-    bargap=0.15 # Espaço entre as barras
+    xaxis_title_standoff=25,
+    yaxis_title_standoff=25,
+    margin=dict(l=50, r=50, t=80, b=50),
+    bargap=0.15
 )
 
-# --- Adicionando a linha da media_da_media_movel ---
-# Note que estamos adicionando a linha no eixo Y, mas o valor da 'media_da_media_movel'
-# não é uma 'quantidade de pedidos'. É uma média de *duração*.
-# Se o seu objetivo é mostrar essa média no contexto das quantidades,
-# precisamos entender como você visualiza essa relação.
-
-# Uma abordagem seria adicionar o valor como anotação ou em um texto separado,
-# pois ele representa uma métrica diferente das barras (que são contagens).
-
-# Se você realmente quer uma linha, ela faria sentido se o eixo Y representasse 'duração',
-# não 'quantidade de pedidos'.
-
-# Vamos adicionar como uma anotação, que é mais apropriado para uma métrica global que não se alinha
-# diretamente com os eixos do gráfico de contagem.
 fig_classificacao_tempo.add_annotation(
-    text=f"Média Móvel de Duração: {media_da_media_movel:.2f} horas",
+    text=f"Média até a associação da remessa: {media_da_media_movel:.2f} horas",
     xref="paper", yref="paper", # Coordenadas em relação ao papel do gráfico (0 a 1)
     x=0.5, y=1.00, # Posição: 0.5 é o centro horizontal, 1.05 é ligeiramente acima do topo
     showarrow=False, # Não mostrar seta
@@ -340,29 +375,18 @@ fig_classificacao_tempo.add_annotation(
     xanchor="center", yanchor="bottom"
 )
 
-# Se o intuito fosse uma linha, e o eixo Y representasse o tempo, faríamos assim:
-# fig_classificacao_tempo.add_hline(
-#     y=media_da_media_movel, # O valor no eixo Y onde a linha será desenhada
-#     line_dash="dash",
-#     line_color="blue",
-#     annotation_text=f"Média das Médias Móveis: {media_da_media_movel:.2f}",
-#     annotation_position="top right"
-# )
-
-
 st.plotly_chart(fig_classificacao_tempo, use_container_width=True)
 
-# --- Criação do Gráfico com Margens ---
 fig_normalizada = px.bar(
     contagem_por_status_classificacao_e_filial_reset,
     x='STATUS',
     y=['Dentro da Média', 'Fora da Média', 'Dados Insuficientes'],
-    facet_col='FILIAL',
-    title='Proporção de Pedidos Dentro/Fora da Média por Status e Filial (100% Empilhado)',
+    facet_col='FILIAL' if filial_selecionada == 'Todas as Filiais' else None,
+    title=f'Proporção de Pedidos Dentro/Fora da Média por Status e Filial ({filial_selecionada})',
     labels={
         'value': 'Proporção',
         'variable': 'Classificação de Tempo',
-        'STATUS': '', # Mantido vazio como no seu código
+        'STATUS': '',
         'FILIAL': 'Filial'
     },
     color_discrete_map={
@@ -370,77 +394,72 @@ fig_normalizada = px.bar(
         'Fora da Média': 'red',
         'Dados Insuficientes': 'gray'
     },
-    category_orders={"FILIAL": ordem_filiais} # Ordena os facets (filiais)
+    category_orders={"FILIAL": ordem_filiais}
 )
 
 fig_normalizada.update_layout(
     barmode='relative',
     uniformtext_minsize=8,
     uniformtext_mode='hide',
-    # --- Adição das Margens ---
-    margin=dict(l=50, r=50, t=80, b=100), # Margens em pixels: esquerda, direita, topo, base
-    # Você pode ajustar esses valores conforme a sua preferência:
-    # l: left (esquerda)
-    # r: right (direita)
-    # t: top (topo - útil se o título for muito longo ou para espaço extra acima do gráfico)
-    # b: bottom (base)
+    margin=dict(l=50, r=50, t=80, b=100),
 )
 
-fig_normalizada.update_xaxes(categoryorder='total descending') # Ordena as barras (STATUS) dentro de cada facet
+fig_normalizada.update_xaxes(categoryorder='total descending')
 
 st.plotly_chart(fig_normalizada, use_container_width=True)
 
-    # --- Chart Creation ---
 fig_situacao_donut = px.pie(
     quantidade_situacao,
     values='Quantidade',
     names='Situação do Pedido',
-    title='Proporção de Pedidos Únicos por Situação',
-    hole=0.4, # Cria o "buraco" do gráfico de rosca
+    title=f'Proporção de Pedidos por Situação ({filial_selecionada})',
+    hole=0.4,
     labels={'Situação do Pedido': 'Situação do Pedido', 'Quantidade': 'Número de Pedidos'},
-    color='Situação do Pedido', # Continua a separar por esta coluna
+    color='Situação do Pedido',
     color_discrete_map={
-    'Aberto Total': 'blue',           
-    'Aberto Parcial': 'orange',                 
-    'Suspenso': 'firebrick',                    
-    'Liquidado': 'green',                    
-    'Cancelado': 'red',                          
-    'Fechado': 'yellow' 
-    } 
+        'Aberto Total': 'blue',
+        'Aberto Parcial': 'orange',
+        'Suspenso': 'firebrick',
+        'Liquidado': 'green',
+        'Cancelado': 'red',
+        'Fechado': 'yellow'
+    }
 )
 
-fig_situacao_donut.update_traces(textinfo='percent+label', pull=[0.05]*len(quantidade_situacao)) # Mostra porcentagem e rótulo, e "explode" ligeiramente
-fig_situacao_donut.update_layout(showlegend=True, uniformtext_minsize=12, uniformtext_mode='hide') # Garante que a legenda seja exibida
+fig_situacao_donut.update_traces(textinfo='percent+label', pull=[0.05]*len(quantidade_situacao))
+fig_situacao_donut.update_layout(showlegend=True, uniformtext_minsize=12, uniformtext_mode='hide')
 
 st.plotly_chart(fig_situacao_donut, use_container_width=True)
 
-# --- Chart Creation ---
-
 if not top_observacoes_bloqueados.empty:
-        fig_obs_bloqueio = px.bar(
-            top_observacoes_bloqueados,
-            y='Observação do Pedido (Bloqueado)',
-            x='Quantidade',
-            orientation='h',
-            title='Top 10 Observações Mais Comuns em Pedidos Únicos Bloqueados',
-            labels={
-                'Observação do Pedido (Bloqueado)': 'Observação',
-                'Quantidade': 'Número de Pedidos'
-            },
-            color='Quantidade',
-            color_continuous_scale=px.colors.sequential.Viridis
-        )
+       fig_obs_bloqueio = px.bar(
+           top_observacoes_bloqueados,
+           y='Observação do Pedido (Bloqueado)',
+           x='Quantidade',
+           orientation='h',
+           title='Top 10 Observações Mais Comuns em Pedidos Bloqueados',
+           labels={
+               'Observação do Pedido (Bloqueado)': 'Observação',
+               'Quantidade': 'Número de Pedidos'
+           },
+           color='Quantidade',
+           color_continuous_scale=px.colors.sequential.Viridis
+       )
+       fig_obs_bloqueio.update_yaxes(categoryorder='total ascending') # Ordena as barras da menor para a maior
+       fig_obs_bloqueio.update_layout(
+           uniformtext_minsize=8,
+           uniformtext_mode='hide',
+           bargap=0.3,  # Controla o espaçamento entre as barras (maior valor = barras mais finas)
+           margin=dict(l=708) # Aumenta a margem esquerda para garantir que o texto completo apareça
+       )
+       
+       st.plotly_chart(fig_obs_bloqueio, use_container_width=True)
 
-        fig_obs_bloqueio.update_yaxes(categoryorder='total ascending') # Ordena as barras da menor para a maior
 
-        fig_obs_bloqueio.update_layout(
-            uniformtext_minsize=8,
-            uniformtext_mode='hide',
-            bargap=0.3,  # Controla o espaçamento entre as barras (maior valor = barras mais finas)
-            margin=dict(l=708) # Aumenta a margem esquerda para garantir que o texto completo apareça
-        )
-        
-        st.plotly_chart(fig_obs_bloqueio, use_container_width=True)
+
+
+
+
 
    
 
