@@ -8,18 +8,15 @@ from datetime import datetime
 pd.set_option('display.max_columns', None)
 
 # Carrega o DataFrame do seu arquivo Excel
-df = pd.read_excel('dados.xlsx')
+df = pd.read_excel('dados0408.xlsx')
 
 from datetime import datetime
 
 now = datetime.now()
 
-colunas_selecionadas = ['PEDIDO','FILIAL','N° NOTA FISCAL','INICIO FATURAMENTO','FIM FATURAMENTO','DATA ASS REMESSA','HORA ASS REMESSA',
-                        'CODIGO PRODUTO','SITUACAO PFA','BLOQUEIO PFA','SITUACAO FAT','SITUACAO CARGA','SITUACAO NFV','NFV BLOQUEIO',
-                        'DATA PREPARACAO DO ITEM','HORA PREPARACAO DO ITEM',
-                        'DATA EMISSAO PEDIDO','HORA EMISSAO PEDIDO',
-                        'DATA GERACAO DA NOTA FISCAL','HORA GERACAO DA NOTA FISCAL',
-                        'DATA GERACAO DO REGISTRO', 'HORA GERACAO DO REGISTRO','SITUACAO DO TITULO','N° TITULO','VENCIMENTO ORIGINAL DO TITULO']
+colunas_selecionadas = ['PEDIDO', 'FILIAL', 'N° TITULO', 'VENCIMENTO ORIGINAL DO TITULO',
+    'SITUACAO DO TITULO', 'DATA PREPARACAO DO ITEM', 'HORA PREPARACAO DO ITEM',
+    'DATA GERACAO DO REGISTRO', 'HORA GERACAO DO REGISTRO']
 
 if 'STATUS' in df.columns: # Verifica se a coluna STATUS já existe
     colunas_selecionadas.append('STATUS')

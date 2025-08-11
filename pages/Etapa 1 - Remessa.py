@@ -8,13 +8,14 @@ import streamlit as st
 pd.set_option('display.max_columns', None)
 
 # Carrega o DataFrame do seu arquivo Excel
-df = pd.read_excel('dados.xlsx')
+df = pd.read_excel('dados0408.xlsx')
 
 from datetime import datetime
 
 now = datetime.now()
 
 colunas_selecionadas = ['PEDIDO','FILIAL','DATA EMISSAO PEDIDO', 'DATA ASS REMESSA','SITUACAO DO PEDIDO','PEDIDO BLOQUEADO','USUARIO BLOQ PEDIDO','DATA DO BLOQUEIO','OBSERVACAO DO PEDIDO']
+
 if 'STATUS' in df.columns: # Verifica se a coluna STATUS já existe
     colunas_selecionadas.append('STATUS')
 

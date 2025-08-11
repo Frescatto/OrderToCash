@@ -10,11 +10,7 @@ from datetime import datetime
 pd.set_option('display.max_columns', None)
 
 # Carrega o DataFrame do seu arquivo Excel
-df = pd.read_excel('dados.xlsx')
-
-print("DataFrame Original:")
-print(df)
-print("\n---")
+df = pd.read_excel('dados0408.xlsx')
 
 from datetime import datetime
 
