@@ -1,0 +1,9 @@
+# Este arquivo configura quais páginas são visíveis na barra lateral
+# Definindo como false, a página não aparecerá na barra lateral
+
+[pages]
+"Etapa 1 - Remessa.py" = false
+"Etapa 2 - Item.py" = false
+"Etapa 3 - Titulo.py" = false
+"Timeline.py" = false
+"Timelineold.py" = false

@@ -1,0 +1,33 @@
+/* Esconder o menu principal e o rodapé */
+#MainMenu {visibility: hidden;}
+footer {visibility: hidden;}
+
+/* Esconder o controle de colapso da barra lateral */
+[data-testid="collapsedControl"] {
+    display: none
+}
+
+/* Esconder os links para outras páginas na barra lateral */
+section[data-testid='stSidebar'] .css-1d391kg,
+section[data-testid='stSidebar'] .css-1siy2j7,
+section[data-testid='stSidebar'] .css-1wrcr25,
+section[data-testid='stSidebar'] .css-1avcm0n,
+section[data-testid='stSidebar'] .css-1qrvfrg {
+    display: none !important;
+}
+
+/* Esconder todos os elementos que começam com 'OrderToCash' ou 'Etapa' ou 'Timeline' */
+section[data-testid='stSidebar'] a[href*="OrderToCash"],
+section[data-testid='stSidebar'] a[href*="Etapa"],
+section[data-testid='stSidebar'] a[href*="Timeline"] {
+    display: none !important;
+}
+
+/* Centralizar imagens na barra lateral */
+[data-testid=stSidebar] [data-testid=stImage]{
+    text-align: center;
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    width: 100%;
+}
